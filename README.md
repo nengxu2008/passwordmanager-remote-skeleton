@@ -35,6 +35,17 @@ Note that the server must be running for the extension to grant access to your v
 5. After editing any file, click the refresh icon on the extension's card in
    `chrome://extensions` to see your changes.
 
+
+## A request from start to finish
+Say you click "save password" in the extension:
+
+- `popup.js` encrypts the password into a blob, using your master key, in the browser.
+- `api.js` runs `createCredential(blob)`, which sends `POST /credentials` with the header `Authorization: Bearer <token>` and the body `{"blob": "..."}`.
+- Express receives it. `express.json()` parses the body, then `requireAuth` checks the token and sets `req.userId`.
+- The handler inserts the row and responds `{"id": 5, "version": 1}`.
+- The extension stores that id and version for later edits.
+
+
 ## Checking your work
 
 To manually check your work, you can simulate two devices by loading the extension in two different Chrome profiles, then logging into the same account from each:

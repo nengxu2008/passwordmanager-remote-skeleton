@@ -1,11 +1,11 @@
-const API = "http://localhost:3000"
+const URL = "http://localhost:3000"
 
 export class SessionExpiredError extends Error {}
 export class ConflictError extends Error {}
 
 async function request(method, path, body) {
     const { token } = await chrome.storage.session.get("token")
-    const res = await fetch(API + path, {
+    const res = await fetch(URL + path, {
         method,
         headers: {
             "Content-Type": "application/json",

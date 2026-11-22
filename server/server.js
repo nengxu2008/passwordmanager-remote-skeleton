@@ -3,8 +3,8 @@ import express from "express"
 import bcrypt from "bcryptjs"
 import db from "./db.js"
 
-const app = express()
-app.use(express.json())
+const app = express()    // app is your server
+app.use(express.json())   // this one reads a request's JSON body and puts it in req.body
 // No CORS middleware: extension pages that have host_permissions for this
 // origin can call it without the server sending CORS headers.
 
