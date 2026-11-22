@@ -21,7 +21,29 @@ export function normalizeUsername(username) {
 // Steps: import the password as raw PBKDF2 key material, then derive the key.
 // WebCrypto calls: crypto.subtle.importKey, crypto.subtle.deriveKey
 export async function deriveMasterKey(password, username) {
-    throw new Error("TODO: implement deriveMasterKey")
+    const account_password = await window.crypto.subtle.importKey(
+        "raw",  // "raw" specifies the format of the key material you're importing — it means the bytes you're passing in are the key directly, with no extra wrapping or encoding.
+        enc.encode(password),    // window.crypto.subtle works with raw bytes (ArrayBuffer/Uint8Array), not JavaScript strings;  enc.encode(masterPassword) converts the string to bytes
+        "PBKDF2", 
+        false,
+        ["deriveKey"],
+    )
+    
+    const masterkey = await window.crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: enc.encode(normalizeUsername(username)),
+            iterations: 100000,
+            hash: "SHA-256",
+        },
+        account_password, 
+        { "name": "AES-GCM", "length": 256 },
+        true, 
+        ["encrypt", "decrypt"]
+    )
+    
+    return masterkey
+    
 }
 
 // TODO: derive the value that is sent to the server on log-in attempt.
@@ -40,7 +62,27 @@ export async function deriveMasterKey(password, username) {
 // WebCrypto calls: crypto.subtle.exportKey, crypto.subtle.importKey,
 // crypto.subtle.deriveBits
 export async function deriveLoginHash(masterKey, password) {
-    throw new Error("TODO: implement deriveLoginHash")
+    const key_exported = await window.crypto.subtle.exportKey("raw", masterKey)
+
+    const key_imported = await window.crypto.subtle.importKey(
+        "raw",  // "raw" specifies the format of the key material you're importing — it means the bytes you're passing in are the key directly, with no extra wrapping or encoding.
+        key_exported,    // window.crypto.subtle works with raw bytes (ArrayBuffer/Uint8Array)
+        "PBKDF2", 
+        false,
+        ["deriveBits"],
+    )
+
+    const sharedSecret = await window.crypto.subtle.deriveBits(
+    {
+        name: "PBKDF2",
+        salt: enc.encode(password),
+        iterations: 1,
+        hash: "SHA-256",
+    },
+    key_imported,
+    256)
+
+    return toBase64(new Uint8Array(sharedSecret))
 }
 
 // TODO: encrypt one credential record.
@@ -57,7 +99,21 @@ export async function deriveLoginHash(masterKey, password) {
 //
 // WebCrypto calls: crypto.getRandomValues, crypto.subtle.encrypt
 export async function encryptRecord(masterKey, record) {
-    throw new Error("TODO: implement encryptRecord")
+    const array = new Uint8Array(12)
+    const iv = self.crypto.getRandomValues(array)
+
+    const encrypted_cred = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", 
+            iv }, 
+        masterKey, 
+        enc.encode(JSON.stringify(record))
+        )
+
+    const ct = new Uint8Array(encrypted_cred)
+    const combined = new Uint8Array(iv.length + ct.length)
+    combined.set(iv, 0)
+    combined.set(ct, iv.length)
+    return toBase64(combined)
 }
 
 // TODO: decrypt a blob produced by encryptRecord.
@@ -69,8 +125,14 @@ export async function encryptRecord(masterKey, record) {
 // as the IV, decrypt the rest, decode the bytes to a string, JSON.parse it.
 // WebCrypto call: crypto.subtle.decrypt
 export async function decryptRecord(masterKey, blobBase64) {
-    throw new Error("TODO: implement decryptRecord")
+    const decoded = fromBase64(blobBase64)
+    const iv = decoded.slice(0, 12)
+    const decrypted_credential = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, masterKey, new Uint8Array(decoded.slice(12)))
+    
+    return JSON.parse(dec.decode(decrypted_credential))
 }
+
+
 
 // CryptoKey objects can't be stored directly, so they go through JWK.
 export function exportKey(masterKey) {

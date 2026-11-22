@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "My Password Manager",
+    "name": "My Password Manager (Remote)",
     "version": "1.0",
     "action": {
         "default_popup": "popup.html"
